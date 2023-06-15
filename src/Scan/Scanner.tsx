@@ -1,6 +1,6 @@
-import React, { useCallback, useLayoutEffect } from 'react';
+import { useCallback, useLayoutEffect } from 'react';
 import PropTypes from 'prop-types';
-import Quagga, { QuaggaJSReaderConfig } from '@ericblade/quagga2';
+import Quagga, { QuaggaJSCodeReader, QuaggaJSResultObject } from '@ericblade/quagga2';
 
 function getMedian(arr) {
   arr.sort((a, b) => a - b);
@@ -17,9 +17,11 @@ function getMedianOfCodeErrors(decodedCodes) {
   return medianOfErrors;
 }
 
-const defaultConstraints = {
-  width: 640,
-  height: 480,
+export const defaultConstraints = {
+  // width: 640,
+  // height: 480,
+  width: 1280,
+  height: 720,
 };
 
 const defaultLocatorSettings = {
@@ -27,7 +29,11 @@ const defaultLocatorSettings = {
   halfSample: true,
 };
 
-const defaultDecoders = ['ean_reader'] as any;
+export const defaultDecoders = [
+  'code_128_reader', 'ean_reader', 'ean_5_reader', 'ean_2_reader',
+  'ean_8_reader', 'code_39_reader', 'code_39_vin_reader', 'codabar_reader',
+  'upc_reader', 'upc_e_reader', 'i2of5_reader', '2of5_reader', 'code_93_reader', 'code_32_reader'
+] as QuaggaJSCodeReader[];
 
 const Scanner = ({
   onDetected,
@@ -41,14 +47,19 @@ const Scanner = ({
   decoders = defaultDecoders,
   locate = true,
 }) => {
-  const errorCheck = useCallback((result) => {
+  const errorCheck = useCallback((result: QuaggaJSResultObject | QuaggaJSResultObject[]) => {
     if (!onDetected) {
       return;
     }
-    const err = getMedianOfCodeErrors(result.codeResult.decodedCodes);
-    // if Quagga is at least 75% certain that it read correctly, then accept the code.
-    if (err < 0.25) {
-      onDetected(result.codeResult.code);
+
+    const results = Array.isArray(result) ? result : [result]
+
+    for (const x of results) {
+      const err = getMedianOfCodeErrors(x.codeResult.decodedCodes);
+      // if Quagga is at least 75% certain that it read correctly, then accept the code.
+      if (err < 0.25) {
+        onDetected(x);
+      }
     }
   }, [onDetected]);
 
@@ -100,7 +111,7 @@ const Scanner = ({
       },
       locator,
       numOfWorkers,
-      decoder: { readers: decoders },
+      decoder: { readers: decoders, multiple: true },
       locate,
     }, (err) => {
       Quagga.onProcessed(handleProcessed);
